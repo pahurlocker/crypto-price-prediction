@@ -3,16 +3,10 @@ import yaml
 from data_producers.bitcoin_price_dataproducer import BitcoinPriceDataProducer
 from data_producers.bitcoin_metric_dataproducer import BitcoinMetricDataProducer
 from data_producers.bitcoin_training_dataproducer import BitcoinTrainingDataProducer
-from data_loaders.bitcoin_price_dataloader import BitcoinPriceDataLoader
 from optimizers.bitcoin_price_regression_optimizer import (
     BitcoinPriceRegressionOptimizer,
 )
-from models.bitcoin_price_regression_models import (
-    BitcoinPriceLSTMRegressionModel,
-    BitcoinPriceCNNRegressionModel,
-)
 
-from trainers.bitcoin_price_trainer import BitcoinPriceModelTrainer
 from predictors.bitcoin_price_predictor import BitcoinPriceModelPredictor
 from models.register_models import ModelRegistry
 from models.bitcoin_price_regression_models import *

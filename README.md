@@ -61,7 +61,7 @@ export MLFLOW_EXPERIMENT_NAME="crypto-reg-experiment"
 This command starts MLFlow server locally. See MLFlow documentation for production grade deployments options.
 
 ```bash
-crypto-price-prediction % mlflow server --backend-store-uri sqlite:///data/mlflow_backend/mlflow.db --host 0.0.0.0
+mlflow server --backend-store-uri sqlite:///data/mlflow_backend/mlflow.db --host 0.0.0.0
 ```
 
 ### Feast Setup
@@ -75,7 +75,7 @@ feast apply
 
 ## Model Pipelines
 
-The command line methods below represent the steps in the model pipeline for retrieving the bitcoin blockchain metrics and price data, training the regression Bitcoin price prediction models in the context of an experiment, registering the best performing model, and scoring against the registered model. The MLproject file defines the entry points into `main.py` so the options are the same and only listed once in each step of the pipeline. You can run all the commands below together using `price-prediction-regression-experiment.sh`
+The command line methods below represent the steps in the model pipeline for retrieving the bitcoin blockchain metrics and price data, training the regression Bitcoin price prediction models in the context of an experiment, registering the best performing model, and scoring against the registered model. The MLproject file defines the entry points into `main.py` so the options are the same and only listed once in each step of the pipeline. You can run all the commands below together using `price-prediction-regression-experiment.sh`.
 
 ### Retrieve Data
 
@@ -83,9 +83,6 @@ These commands will pull data from Blockchain.com and Alpha Vantage when --pull-
 
 ```
 Usage: mlflow run . -e price-data-retrieve -P pull-data=True --env-manager=local
-
-Options:
-  --pull-data BOOLEAN  load saved data or pull new data. Default is False
 ```
 
 OR 
