@@ -139,6 +139,8 @@ cython_debug/
 
 config.yaml
 artifacts/
+mlruns/
+data/mlflow_backend/mlflow.db
 
 .vscode
 

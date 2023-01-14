@@ -1,0 +1,42 @@
+name: crypto-price-prediction
+
+conda_env: conda.yaml
+
+entry_points:
+  price-data-retrieve:
+    parameters:
+      pull_data: {type: bool, default: False}
+    command: "python main.py price-data-retrieve --pull-data {pull_data}"
+
+  main:
+    parameters:
+      model_type: {type: string, default: 'CNN'} 
+      pull_data: {type: bool, default: False}
+      n_trials: {type: int, default: 2}
+      timesteps: {type: int, default: 10}
+      prediction_length: {type: int, default: 10}
+      experiment_name: {type: string, default: 'crypto-reg-experiment'}
+    command: "python main.py price-regression-optimize --model-type {model_type}
+                                    --pull-data {pull_data}
+                                    --n-trials {n_trials}
+                                    --timesteps {timesteps}
+                                    --prediction-length {prediction_length}
+                                    --experiment-name {experiment_name}"
+  price-predict:
+    parameters:
+      date_end: {type: datetime, default: None}
+      registered_model_name: {type: string, default: 'bitcoin-regression'} 
+      timesteps: {type: int, default: 10}
+    command: "python main.py price-predict 
+                  --date-end {date_end} 
+                  --registered-model-name {registered_model_name}
+                  --timesteps {timesteps}"
+
+  register-best-model:
+    parameters:
+      model_name: {type: string, default: 'bitcoin-regression'}
+      experiment_id: {type: string, default: "2"}
+    command: "python main.py register-best-model
+                    --model-name {model_name}
+                    --experiment-id {experiment_id}"
+

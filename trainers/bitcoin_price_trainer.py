@@ -1,26 +1,18 @@
 from base.base_trainer import BaseTrain
-import os
 from pathlib import Path
 from joblib import load, dump
 
 import numpy as np
 import pandas as pd
-
-# from plotly.offline import plot, iplot
-# import plotly.graph_objs as go
-
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.callbacks import ModelCheckpoint  # , TensorBoard
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
-    roc_curve,
-    classification_report,
-    auc,
 )
 from sklearn.preprocessing import MinMaxScaler
 
@@ -38,16 +30,6 @@ class BitcoinPriceModelTrainer(BaseTrain):
         self.init_callbacks()
 
     def init_callbacks(self):
-        # self.callbacks.append(
-        #     ModelCheckpoint(
-        #         filepath=os.path.join(self.config.callbacks.checkpoint_dir, '%s-{epoch:02d}-{val_loss:.2f}.hdf5' % self.config.exp.name),
-        #         monitor=self.config.callbacks.checkpoint_monitor,
-        #         mode=self.config.callbacks.checkpoint_mode,
-        #         save_best_only=self.config.callbacks.checkpoint_save_best_only,
-        #         save_weights_only=self.config.callbacks.checkpoint_save_weights_only,
-        #         verbose=self.config.callbacks.checkpoint_verbose,
-        #     )
-        # )
         self.callbacks.append(
             ModelCheckpoint(
                 self.config.trainer.model_name,
@@ -57,33 +39,15 @@ class BitcoinPriceModelTrainer(BaseTrain):
                 save_best_only=True,
             )
         )
-        # self.callbacks.append(
-        #     TensorBoard(
-        #         log_dir=self.config.callbacks.tensorboard_log_dir,
-        #         write_graph=self.config.callbacks.tensorboard_write_graph,
-        #     )
-        # )
-
-        # if hasattr(self.config,"comet_api_key"):
-        #     from comet_ml import Experiment
-        #     experiment = Experiment(api_key=self.config.comet_api_key, project_name=self.config.exp_name)
-        #     experiment.disable_mp()
-        #     experiment.log_multiple_params(self.config)
-        #     self.callbacks.append(experiment.get_keras_callback())
 
     def _scale_data(self, X_train, y_train, X_test, y_test):
 
-        # print(y_test)
         train = np.concatenate((X_train, y_train), axis=1)
-        # print(train[0])
         scaler = MinMaxScaler().fit(train)
         scaled_train = scaler.transform(train)
-        # y_scaled_train = scaler.transform(y_train)
         test = np.concatenate((X_test, y_test), axis=1)
         scaled_test = scaler.transform(test)
-        # y_scaled_test = scaler.transform(y_test)
 
-        # print(scaled_train[0])
         print("Saving artifacts...")
         Path("artifacts").mkdir(exist_ok=True)
         dump(scaler, "artifacts/scaler.pkl")
@@ -123,8 +87,6 @@ class BitcoinPriceModelTrainer(BaseTrain):
         for i in range(len(X_data) - look_back - 1):
             a = X_data[i : (i + look_back)]
             dataX.append(a)
-            # print(i + look_back+1)
-            # print(y_data[i + look_back+1, 0])
             dataY.append(y_data[i + look_back + 1, 0])
 
         return np.array(dataX), np.array(dataY)
@@ -135,12 +97,16 @@ class BitcoinPriceModelTrainer(BaseTrain):
             self.train_data[0], self.train_data[1], self.test_data[0], self.test_data[1]
         )
         self.X_train, self.y_train = self._prepare_regression_data(
-            X_scaled_train, y_scaled_train, self.config.trainer.timestep
+            X_scaled_train, y_scaled_train, self.config.trainer.timesteps
         )
         self.X_test, self.y_test = self._prepare_regression_data(
-            X_scaled_test, y_scaled_test, self.config.trainer.timestep
+            X_scaled_test, y_scaled_test, self.config.trainer.timesteps
         )
-        print("************** Shape {}  {}".format(X_scaled_test.shape, y_scaled_test.shape))
+        print(
+            "************** Shape {}  {}".format(
+                X_scaled_test.shape, y_scaled_test.shape
+            )
+        )
         if self.config.trainer.model_type_current == "CNN":
             history = self.model.fit(
                 self.X_train.reshape(
@@ -246,12 +212,8 @@ class BitcoinPriceModelTrainer(BaseTrain):
                 X_test_pred, self.y_test
             )
 
-            # print("************** Ev Shape {}  {}".format(X_test_pred_inverse.shape, y_test_inverse.shape))
-            # print(y_test_inverse)
-            # mape = keras.losses.MAPE(y_test_inverse[:-5], X_test_pred_inverse[:-5])
             mape = keras.losses.MAPE(y_test_inverse, X_test_pred_inverse)
-            # print(X_test_pred_inverse.shape)
-            print("********************** MAPE")
+            print("********** MAPE ************")
             print(mape.numpy())
 
             # if mape.numpy() <= 0.2:

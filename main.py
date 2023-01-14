@@ -1,37 +1,29 @@
 import yaml
 
-from data_producers.bitcoin_sentiment_dataproducer import BitcoinSentimentDataProducer
 from data_producers.bitcoin_price_dataproducer import BitcoinPriceDataProducer
-from data_loaders.bitcoin_sentiment_dataloader import BitcoinSentimentDataLoader
+from data_producers.bitcoin_metric_dataproducer import BitcoinMetricDataProducer
+from data_producers.bitcoin_training_dataproducer import BitcoinTrainingDataProducer
 from data_loaders.bitcoin_price_dataloader import BitcoinPriceDataLoader
-from optimizers.bitcoin_sentiment_optimizer import BitcoinSentimentOptimizer
 from optimizers.bitcoin_price_regression_optimizer import (
     BitcoinPriceRegressionOptimizer,
-)
-from optimizers.bitcoin_price_classification_optimizer import (
-    BitcoinPriceClassificationOptimizer,
-)
-from models.bitcoin_sentiment_models import (
-    BitcoinSentimentLSTM1Model,
-    BitcoinSentimentCNN1Model,
 )
 from models.bitcoin_price_regression_models import (
     BitcoinPriceLSTMRegressionModel,
     BitcoinPriceCNNRegressionModel,
 )
-from models.bitcoin_price_classification_models import (
-    BitcoinPriceLSTMClassificationModel,
-    BitcoinPriceCNNClassificationModel,
-)
-from trainers.bitcoin_sentiment_trainer import BitcoinSentimentModelTrainer
+
 from trainers.bitcoin_price_trainer import BitcoinPriceModelTrainer
-from predictors.bitcoin_sentiment_predictor import BitcoinSentimentModelPredictor
+from predictors.bitcoin_price_predictor import BitcoinPriceModelPredictor
+from models.register_models import ModelRegistry
+from models.bitcoin_price_regression_models import *
 
 from dotmap import DotMap
 
 import pandas as pd
 
 import click
+import datetime
+from datetime import date
 
 
 def get_config():
@@ -53,20 +45,25 @@ def cli1():
     default=False,
     type=bool,
 )
-def sentiment_data_retrieve(pull_data):
+def price_data_retrieve(pull_data):
 
     config = DotMap()
     config.dataproducer.pull_data = pull_data
-    config.dataproducer.apikey = get_config()["crypto_api_key"]
+    config.dataproducer.apikey = get_config()["alphavantage_api_key"]
 
-    print("Create the data producer.")
-    data_producer = BitcoinSentimentDataProducer(config)
+    print("Create the data producers.")
+    price_data_producer = BitcoinPriceDataProducer(config)
+    metric_data_producer = BitcoinMetricDataProducer(config)
 
-    df_raw = data_producer.get_raw_data()
-    df_processed = data_producer.get_processed_data()
+    df_price_raw = price_data_producer.get_raw_data()
+    df_price_processed = price_data_producer.get_processed_data()
+    df_metric_raw = metric_data_producer.get_raw_data()
+    df_metric_processed = metric_data_producer.get_processed_data()
 
-    print(df_raw.head())
-    print(df_processed.head())
+    print(df_price_raw.head())
+    print(df_price_processed.head())
+    print(df_metric_raw.head())
+    print(df_metric_processed.head())
 
 
 @click.group()
@@ -75,33 +72,18 @@ def cli2():
 
 
 @cli2.command()
-@click.option("--model-type", help="LSTM, CNN. Default uses all", default="", type=str)
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--n-trials", help="number of study trials. Default is 2", default=2, type=int
-)
-@click.option("--version", help="version of study. Default is 1", default=1, type=int)
-def sentiment_optimize(model_type, pull_data, n_trials, version):
+def price_training_data_create():
 
     config = DotMap()
-    print(pull_data)
-    config.dataloader.pull_data = pull_data
-    config.trainer.model_type = model_type
-    config.optimizer.n_trials = n_trials
-    config.optimizer.version = version
-    config.trainer.model_name_prefix = "./artifacts/sent"
+    config.dataproducer.pull_data = True
+    config.dataproducer.end_timestamp = pd.Timestamp.now()
 
-    # print("Create the data generator.")
-    # data_loader = BitcoinSentimentDataLoader(config)
+    print("Create the data producers.")
+    training_data_producer = BitcoinTrainingDataProducer(config)
 
-    optimizer = BitcoinSentimentOptimizer(config)
+    df_training_data = training_data_producer.get_processed_data()
 
-    optimizer.optimize()
+    print(df_training_data.head())
 
 
 @click.group()
@@ -113,86 +95,6 @@ def cli3():
 @click.option(
     "--model-type", help="LSTM, CNN. Default uses all", default="LSTM", type=str
 )
-@click.option("--epochs", help="Epochs", default=10, type=int)
-@click.option("--batch-size", help="Batch Size", default=10, type=int)
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
-)
-def sentiment_train(model_type, epochs, batch_size, pull_data):
-
-    config = DotMap()
-    config.pull_data = pull_data
-    config.trainer.model_type = model_type
-    config.trainer.num_epochs = epochs
-    config.trainer.verbose_training = 1
-    config.trainer.batch_size = batch_size
-    config.trainer.optimizer_name = "adam"
-    config.trainer.validation_split = 0.1
-    config.trainer.max_article_length = 800
-    config.trainer.embedding_vector_length = 100
-    config.trainer.model_name_prefix = "./artifacts/sent"
-    config.trainer.model_name = "{}-{}.h5".format(
-        config.trainer.model_name_prefix, model_type
-    )
-
-    print("Create the data generator.")
-    data_loader = BitcoinSentimentDataLoader(config)
-
-    print("Create the model.")
-    if model_type == "LSTM":
-        model = BitcoinSentimentLSTM1Model(config)
-    else:
-        model = BitcoinSentimentCNN1Model(config)
-
-    print("Create the trainer")
-    trainer = BitcoinSentimentModelTrainer(
-        model.model, data_loader.get_train_data(), data_loader.get_test_data(), config
-    )
-
-    print("Start training the model.")
-    trainer.train()
-
-    print("Start training the model.")
-    trainer.evaluate()
-
-
-@click.group()
-def cli4():
-    pass
-
-
-@cli4.command()
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
-)
-def price_data_retrieve(pull_data):
-
-    config = DotMap()
-    config.dataproducer.pull_data = pull_data
-
-    print("Create the data producer.")
-    data_producer = BitcoinPriceDataProducer(config)
-
-    df_raw = data_producer.get_raw_data()
-    df_processed = data_producer.get_processed_data()
-
-    print(df_raw.head())
-    print(df_processed.head())
-
-
-@click.group()
-def cli5():
-    pass
-
-
-@cli5.command()
-@click.option("--model-type", help="LSTM, CNN. Default uses all", default="", type=str)
 @click.option(
     "--pull-data",
     help="load saved data or pull new data. Default is False",
@@ -203,13 +105,7 @@ def cli5():
     "--n-trials", help="number of study trials. Default is 2", default=2, type=int
 )
 @click.option(
-    "--with-sent",
-    help="With or without sentiment feature. Default is True",
-    default=True,
-    type=bool,
-)
-@click.option(
-    "--timestep",
+    "--timesteps",
     help="Number of timesteps, if not set the optimizer will select the timesteps. Default is 0",
     default=0,
     type=int,
@@ -221,20 +117,34 @@ def cli5():
     type=int,
 )
 @click.option("--version", help="version of study. Default is 1", default=1, type=int)
+@click.option(
+    "--experiment-name",
+    help="Name of the experiment",
+    default="crypto-reg-experiment",
+    type=str,
+)
 def price_regression_optimize(
-    model_type, pull_data, n_trials, with_sent, timestep, prediction_length, version
+    model_type,
+    pull_data,
+    n_trials,
+    timesteps,
+    prediction_length,
+    version,
+    experiment_name,
 ):
 
     config = DotMap()
     config.pull_data = pull_data
+    config.dataloader.start_timestamp = pd.Timestamp(2021, 1, 10)
+    config.dataloader.end_timestamp = pd.Timestamp.now()
     config.trainer.model_type = model_type
     config.trainer.model_task = "regression"
     config.optimizer.n_trials = n_trials
     config.optimizer.version = version
+    config.optimizer.experiment_name = experiment_name
     config.trainer.model_name_prefix = "./artifacts/reg"
-    config.trainer.with_sent = with_sent
-    config.trainer.timestep = timestep
-    if timestep == 0:
+    config.trainer.timesteps = timesteps
+    if timesteps == 0:
         config.trainer.timestep_set = False
     else:
         config.trainer.timestep_set = True
@@ -246,230 +156,67 @@ def price_regression_optimize(
 
 
 @click.group()
-def cli6():
+def cli4():
     pass
 
 
-@cli6.command()
+@cli4.command()
 @click.option(
-    "--model-type", help="LSTM, CNN. Default uses all", default="LSTM", type=str
-)
-@click.option("--epochs", help="Epochs", default=10, type=int)
-@click.option("--batch-size", help="Batch size", default=10, type=int)
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
+    "--date-end",
+    help="Final date for time series prior to prediction date",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    default=str(date.today()),
 )
 @click.option(
-    "--with-sent",
-    help="With or without sentiment feature. Default is True",
-    default=True,
-    type=bool,
-)
-def price_regression_train(model_type, epochs, batch_size, pull_data, with_sent):
-
-    config = DotMap()
-    config.pull_data = pull_data
-    config.trainer.model_type = model_type
-    config.trainer.model_task = "regression"
-    config.trainer.num_epochs = epochs
-    config.trainer.verbose_training = 1
-    config.trainer.batch_size = batch_size
-    config.trainer.units = 32
-    config.trainer.activation_function = "relu"
-    config.trainer.optimizer_name = "adam"
-    config.trainer.validation_split = 0.1
-    config.trainer.model_name_prefix = "./artifacts/reg"
-    config.trainer.with_sent = with_sent
-    config.trainer.timesteps = 10
-    config.trainer.model_name = "{}-{}.h5".format(
-        config.trainer.model_name_prefix, model_type
-    )
-
-    print("Create the data generator.")
-    data_loader = BitcoinPriceDataLoader(config)
-    config.trainer.nfeatures = int(data_loader.get_train_data()[0].shape[1])
-
-    print("Create the model.")
-    if model_type == "LSTM":
-        model = BitcoinPriceLSTMRegressionModel(None, config)
-    else:
-        model = BitcoinPriceCNNRegressionModel(None, config)
-
-    print("Create the trainer")
-    trainer = BitcoinPriceModelTrainer(
-        model.model, data_loader.get_train_data(), data_loader.get_test_data(), config
-    )
-
-    print("Start training the model.")
-    trainer.train()
-
-    print("Start training the model.")
-    trainer.evaluate()
-
-
-@click.group()
-def cli7():
-    pass
-
-
-@cli7.command()
-@click.option("--model-type", help="LSTM, CNN. Default uses all", default="", type=str)
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
+    "--registered-model-name",
+    help="Registered model name without version. The latest version will be selected from the registry",
+    default="bitcoin-regression",
+    type=str,
 )
 @click.option(
-    "--n-trials", help="number of study trials. Default is 2", default=2, type=int
-)
-@click.option(
-    "--with-sent",
-    help="With or without sentiment feature. Default is True",
-    default=True,
-    type=bool,
-)
-@click.option(
-    "--timestep",
-    help="Number of timesteps, if not set the optimizer will select the timesteps. Default is 0",
-    default=0,
+    "--timesteps",
+    help="Number of timesteps the model was trained with. Default is 10",
+    default=10,
     type=int,
 )
-@click.option(
-    "--prediction-length",
-    help="The number of predictions in the test set. The size of the test set will be prediction length + timesteps + 1. Be careful not to go above the total size of data set. Default is 5",
-    default=5,
-    type=int,
-)
-@click.option("--version", help="version of study. Default is 1", default=1, type=int)
-def price_classification_optimize(
-    model_type, pull_data, n_trials, with_sent, timestep, prediction_length, version
-):
+def price_predict(date_end, registered_model_name, timesteps):
 
     config = DotMap()
-    config.pull_data = pull_data
-    config.trainer.model_type = model_type
-    config.trainer.model_task = "classification"
-    config.optimizer.n_trials = n_trials
-    config.optimizer.version = version
-    config.trainer.model_name_prefix = "./artifacts/cls"
-    config.trainer.with_sent = with_sent
-    config.trainer.timestep = timestep
-    if timestep == 0:
-        config.trainer.timestep_set = False
-    else:
-        config.trainer.timestep_set = True
-    config.trainer.prediction_length = prediction_length
-
-    optimizer = BitcoinPriceClassificationOptimizer(config)
-
-    optimizer.optimize()
-
-
-@click.group()
-def cli8():
-    pass
-
-
-@cli8.command()
-@click.option(
-    "--model-type", help="LSTM, CNN. Default uses all", default="LSTM", type=str
-)
-@click.option("--epochs", help="Epochs", default=10, type=int)
-@click.option("--batch-size", help="Batch size", default=10, type=int)
-@click.option(
-    "--pull-data",
-    help="load saved data or pull new data. Default is False",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--with-sent",
-    help="With or without sentiment feature. Default is True",
-    default=True,
-    type=bool,
-)
-def price_classification_train(model_type, epochs, batch_size, pull_data, with_sent):
-
-    config = DotMap()
-    config.pull_data = pull_data
-    config.trainer.model_type = model_type
-    config.trainer.model_task = "classification"
-    config.trainer.num_epochs = epochs
-    config.trainer.verbose_training = 1
-    config.trainer.batch_size = batch_size
-    config.trainer.units = 32
-    config.trainer.activation_function = "relu"
-    config.trainer.optimizer_name = "adam"
-    config.trainer.validation_split = 0.1
-    config.trainer.model_name_prefix = "./artifacts/cls"
-    config.trainer.with_sent = with_sent
-    config.trainer.model_name = "{}-{}.h5".format(
-        config.trainer.model_name_prefix, model_type
-    )
-
-    print("Create the data generator.")
-    data_loader = BitcoinPriceDataLoader(config)
-    config.trainer.nfeatures = int(data_loader.get_train_data()[0].shape[1])
-
-    print("Create the model.")
-    if model_type == "LSTM":
-        model = BitcoinPriceLSTMClassificationModel(config)
-    else:
-        model = BitcoinPriceCNNClassificationModel(config)
-
-    print("Create the trainer")
-    trainer = BitcoinPriceModelTrainer(
-        model.model, data_loader.get_train_data(), data_loader.get_test_data(), config
-    )
-
-    print("Start training the model.")
-    trainer.train()
-
-    print("Start training the model.")
-    trainer.evaluate()
-
-
-@click.group()
-def cli9():
-    pass
-
-
-@cli9.command()
-def sentiment_predict():
-
-    config = DotMap()
-
-    predictor = BitcoinSentimentModelPredictor(config)
-
+    config.dataloader.start_timestamp = date_end - datetime.timedelta(days=timesteps)
+    config.dataloader.end_timestamp = date_end
+    config.registered_model_name = registered_model_name
+    config.trainer.timesteps = timesteps
+    predictor = BitcoinPriceModelPredictor(config)
     prediction = predictor.predict()
-    data = predictor.get_data()
-
-    df_news = pd.read_pickle("./data/processed/news_corpus_predict.pkl")
-    df_news["polarity"] = prediction
-    print(df_news.tail())
-    print(df_news.info())
-    df_news["polarity"] = pd.to_numeric(df_news["polarity"])
-    df_news = df_news.groupby(["date"])["polarity"].mean()
-    df_news = df_news.reset_index("date")
-    df_news.set_index("date", inplace=True)
-    df_news.sort_index(inplace=True)
-
-    df_chartdata = pd.read_pickle("./data/processed/chartdata.pkl")
-    df_chartdata_sent = df_chartdata.merge(
-        df_news[["polarity"]], on="date", how="inner"
-    )
-    df_chartdata_sent.to_pickle("./data/processed/chartdata_sent.pkl")
-
-    print(prediction.flatten())
+    print(prediction)
+    print("done")
 
 
-cli = click.CommandCollection(
-    sources=[cli1, cli2, cli3, cli4, cli5, cli6, cli7, cli8, cli9]
+@click.group()
+def cli5():
+    pass
+
+
+@cli5.command()
+@click.option(
+    "--model-name",
+    help="Model name",
+    type=str,
+    default="bitcoin-regression",
 )
+@click.option(
+    "--experiment-id",
+    help="Experiment id",
+    type=str,
+    default="2",
+)
+def register_best_model(model_name, experiment_id):
+
+    modelregistry = ModelRegistry()
+    print(modelregistry.register_best_model(model_name, experiment_id))
+
+
+cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4, cli5])
 
 if __name__ == "__main__":
     cli()

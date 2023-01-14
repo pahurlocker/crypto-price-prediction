@@ -1,13 +1,5 @@
 from base.base_model import BaseModel
 import tensorflow as tf
-from tensorflow import keras
-from keras.models import Sequential
-from keras import layers
-# from tensorflow import keras
-# from keras.models import Sequential
-# from keras import layers
-#from tcn import TCN
-#from attention import Attention
 
 
 class BitcoinPriceLSTMRegressionModel(BaseModel):
@@ -66,10 +58,10 @@ class BitcoinPriceCNNRegressionModel(BaseModel):
         self.model = tf.keras.Sequential()
         self.model.add(
             tf.keras.layers.Conv2D(
-                filters=32, #40
+                filters=32,  # 40
                 kernel_size=(3, self.config.trainer.nfeatures),
                 input_shape=(
-                    self.config.trainer.timestep,
+                    self.config.trainer.timesteps,
                     self.config.trainer.nfeatures,
                     1,
                 ),
@@ -100,12 +92,14 @@ class BitcoinPriceCNNLSTMRegressionModel(BaseModel):
                 ),
                 input_shape=(
                     None,
-                    self.config.trainer.timestep,
+                    self.config.trainer.timesteps,
                     self.config.trainer.nfeatures,
                 ),
             )
         )
-        self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling1D(pool_size=2)))
+        self.model.add(
+            tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling1D(pool_size=2))
+        )
         self.model.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Flatten()))
         self.model.add(
             tf.keras.layers.LSTM(
@@ -136,7 +130,7 @@ class BitcoinPriceEncoderDecoderConvLSTM2DRegressionModel(BaseModel):
                 kernel_size=(1, 3),
                 activation=self.config.trainer.activation_function,
                 input_shape=(
-                    self.config.trainer.timestep,
+                    self.config.trainer.timesteps,
                     1,
                     1,
                     self.config.trainer.nfeatures,
@@ -188,7 +182,7 @@ class BitcoinPriceEncoderDecoderLSTMRegressionModel(BaseModel):
                 input_shape=(None, self.config.trainer.nfeatures),
             )
         )
-        self.model.add(tf.keras.layers.RepeatVector(self.config.trainer.timestep))
+        self.model.add(tf.keras.layers.RepeatVector(self.config.trainer.timesteps))
         self.model.add(
             tf.keras.layers.LSTM(
                 self.config.trainer.units,
@@ -239,7 +233,7 @@ class BitcoinPriceAttentionRegressionModel(BaseModel):
         self.model = tf.keras.Sequential()
         self.model.add(
             tf.keras.Input(
-                shape=(self.config.trainer.timestep, self.config.trainer.nfeatures)
+                shape=(self.config.trainer.timesteps, self.config.trainer.nfeatures)
             )
         )
         self.model.add(
@@ -252,4 +246,3 @@ class BitcoinPriceAttentionRegressionModel(BaseModel):
 
         self.model.compile(optimizer=self.optimizer, loss="mse")
         self.model.summary()
-

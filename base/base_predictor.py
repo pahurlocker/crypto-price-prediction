@@ -1,8 +1,8 @@
 class BasePredictor(object):
     def __init__(self, config):
-        self.model = self._load_model()
-        self.data = self._load_data()
         self.config = config
+        self.data = self._load_data()
+        self.model = self._load_model()
 
     def _load_model(self):
         raise NotImplementedError
